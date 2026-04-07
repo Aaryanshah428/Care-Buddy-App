@@ -1,0 +1,4 @@
+# Care Buddy / senior care chatbot (bot.py)
+streamlit
+langchain-openai
+langchain-core

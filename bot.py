@@ -3,6 +3,7 @@ Senior Care Chatbot — SQLite memory, chat logging, persona prompt.
 Helps older adults with medicine reminders, exercise, and daily wellness.
 """
 
+import io
 import os
 import sqlite3
 import uuid
@@ -10,6 +11,8 @@ from datetime import datetime, time as time_cls
 from pathlib import Path
 
 import streamlit as st
+
+from medicine_bottle_vision import analyze_medicine_bottle_image_bytes
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
 
@@ -651,6 +654,52 @@ def chat_response(session_id: str, user_message: str) -> str:
     return response.content if hasattr(response, "content") else str(response)
 
 
+def format_medicine_bottle_analysis(result: dict) -> str:
+    """Turn vision JSON into readable markdown for chat."""
+    parts: list[str] = []
+    if result.get("parse_error"):
+        parts.append(
+            "**Could not parse structured details.** Showing raw model output when available.\n"
+        )
+    pkg = result.get("is_medicine_packaging")
+    if pkg is not None:
+        yn = "Yes" if pkg else "No"
+        parts.append(f"- **Looks like medicine packaging:** {yn}")
+    conf = result.get("confidence")
+    if conf:
+        parts.append(f"- **Confidence:** {conf}")
+    labels = [
+        ("what_it_appears_to_be", "Description"),
+        ("active_ingredient_or_drug_name", "Name / active ingredient"),
+        ("strength_and_form", "Strength & form"),
+        ("stated_use_or_indications_from_label", "Stated use (from label)"),
+        ("visible_warnings_or_cautions", "Warnings / cautions (visible)"),
+        ("notes", "Notes"),
+    ]
+    for key, title in labels:
+        val = result.get(key)
+        if val:
+            parts.append(f"- **{title}:** {val}")
+    excerpts = result.get("readable_label_excerpts") or []
+    if excerpts:
+        joined = "; ".join(f'"{e}"' for e in excerpts if e)
+        if joined:
+            parts.append(f"- **Readable phrases from label:** {joined}")
+    issues = result.get("issues_limiting_interpretation") or []
+    if issues:
+        parts.append(
+            "- **Issues limiting interpretation:** "
+            + "; ".join(str(i) for i in issues if i)
+        )
+    raw = result.get("raw_text") or ""
+    if result.get("parse_error") and raw:
+        snippet = raw if len(raw) <= 4000 else raw[:4000] + "\n…"
+        parts.append(f"\n**Raw response:**\n```\n{snippet}\n```")
+    if not parts and raw:
+        return raw
+    return "\n".join(parts) if parts else "_No details returned._"
+
+
 # =============================================================================
 # Streamlit UI
 # =============================================================================
@@ -705,6 +754,71 @@ def main():
                 st.session_state.messages.append({"role": "user", "content": h["content"]})
             else:
                 st.session_state.messages.append({"role": "assistant", "content": h["content"]})
+
+    st.divider()
+    st.subheader("Medicine label photo")
+    st.caption(
+        "Upload a clear photo of a bottle, box, or blister pack. CareBuddy describes the label "
+        "for organizing only — not dosing. Always confirm with a pharmacist or doctor."
+    )
+    api_ok = bool(os.environ.get("OPENAI_API_KEY", "").strip())
+    ph_col1, ph_col2 = st.columns([1, 1])
+    with ph_col1:
+        top_med_upload = st.file_uploader(
+            "Choose image",
+            type=["png", "jpg", "jpeg", "webp", "gif"],
+            key="medicine_bottle_uploader_top",
+            label_visibility="visible",
+        )
+    with ph_col2:
+        st.write("")  # align button under uploader
+        st.write("")
+        can_read = top_med_upload is not None and api_ok
+        if st.button(
+            "Read label & add to chat",
+            type="primary",
+            use_container_width=True,
+            key="medicine_bottle_read_btn_top",
+            disabled=not can_read,
+        ):
+            if top_med_upload is None:
+                st.warning("Choose an image first.")
+            elif not api_ok:
+                st.warning("Open **Settings** in the sidebar and save your OpenAI API key first.")
+            else:
+                data = top_med_upload.getvalue()
+                mime = top_med_upload.type or "image/jpeg"
+                with st.spinner("Reading label…"):
+                    try:
+                        result = analyze_medicine_bottle_image_bytes(
+                            data, mime_type=mime
+                        )
+                        analysis_md = format_medicine_bottle_analysis(result)
+                        assistant_text = (
+                            "**Label readout** (automated — verify with a pharmacist):\n\n"
+                            + analysis_md
+                        )
+                        st.session_state.messages.append(
+                            {
+                                "role": "user",
+                                "content": "🖼️ *Shared a medicine bottle photo*",
+                                "image_bytes": data,
+                                "mime": mime,
+                            }
+                        )
+                        st.session_state.messages.append(
+                            {"role": "assistant", "content": assistant_text}
+                        )
+                        log_message(session_id, "user", "[Medicine bottle photo]")
+                        log_message(session_id, "assistant", assistant_text)
+                        st.success("Added to your chat below.")
+                    except Exception as e:
+                        st.error(f"Could not read the image: {e}")
+    if top_med_upload is not None:
+        st.image(top_med_upload, width=200, caption="Preview")
+    if not api_ok:
+        st.info("Tip: save your API key under **Sidebar → Settings** to enable photo reading.")
+    st.divider()
 
     if "med_add_version" not in st.session_state:
         st.session_state.med_add_version = 0
@@ -1159,6 +1273,8 @@ def main():
 
     for msg in st.session_state.messages:
         with st.chat_message(msg["role"]):
+            if msg.get("image_bytes"):
+                st.image(io.BytesIO(msg["image_bytes"]), width=min(320, 400))
             st.markdown(msg["content"])
 
     if prompt := st.chat_input("Type your message..."):

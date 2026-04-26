@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="theme-color" content="#05070f" />
+    <meta name="theme-color" content="#F8F6EF" />
     <meta name="description" content="CareBuddy — calm, structured reminder and care support." />
     <title>CareBuddy</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -38,7 +38,7 @@
           </div>
           <div class="brand__text">
             <span class="brand__name">CareBuddy</span>
-            <span class="brand__tagline">Calm. Structured. Personal.</span>
+            <span class="brand__tagline">Know what to do today. Stay independent.</span>
           </div>
         </div>
         <div class="topbar__right">
@@ -46,6 +46,12 @@
             <span class="status-dot"></span>
             <span id="status-label">Connecting…</span>
           </div>
+          <button class="icon-btn" id="btn-open-settings-top" aria-label="Open settings">
+            <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+              <circle cx="9" cy="9" r="3" stroke="currentColor" stroke-width="1.6"/>
+              <path d="M9 1.5v2M9 14.5v2M1.5 9h2M14.5 9h2M3.4 3.4l1.4 1.4M13.2 13.2l1.4 1.4M3.4 14.6l1.4-1.4M13.2 4.8l1.4-1.4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+            </svg>
+          </button>
           <button class="icon-btn" id="btn-sidebar-toggle" aria-label="Toggle menu">
             <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
               <rect y="3" width="18" height="2" rx="1" fill="currentColor"/>
@@ -76,12 +82,6 @@
               </span>
               Add reminder
             </button>
-            <button class="sidebar-action sidebar-action--ghost" id="btn-open-settings">
-              <span class="sidebar-action__icon">
-                <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="2.5" stroke="currentColor" stroke-width="1.5"/><path d="M8 1v2M8 13v2M1 8h2M13 8h2M2.93 2.93l1.41 1.41M11.66 11.66l1.41 1.41M2.93 13.07l1.41-1.41M11.66 4.34l1.41-1.41" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
-              </span>
-              Settings
-            </button>
           </div>
 
           <div class="sidebar-section sidebar-section--grow">
@@ -99,24 +99,51 @@
 
       <!-- Main -->
       <main class="main" id="main-content">
+        <section id="view-onboarding" class="app-view" hidden>
+          <div class="onboarding-shell">
+            <div class="onboarding-header">
+              <p class="onboarding-kicker">CareBuddy setup</p>
+              <h1 class="onboarding-title" id="onboarding-title">Welcome to CareBuddy</h1>
+              <p class="onboarding-subtitle" id="onboarding-subtitle">
+                A calm daily guide to help you stay independent, organized, and on track.
+              </p>
+              <div class="onboarding-progress">
+                <div class="onboarding-progress__bar" id="onboarding-progress-bar"></div>
+              </div>
+              <p class="onboarding-step" id="onboarding-step-label">Step 1 of 9</p>
+            </div>
+            <div class="onboarding-body" id="onboarding-body"></div>
+            <div class="onboarding-actions">
+              <button class="btn-ghost" id="onboarding-back" type="button">Back</button>
+              <button class="btn-primary" id="onboarding-next" type="button">Next</button>
+            </div>
+          </div>
+        </section>
+
+        <nav class="primary-nav" aria-label="Primary navigation">
+          <button class="primary-nav__btn is-active" data-view="today">Today</button>
+          <button class="primary-nav__btn" data-view="medications">Medications</button>
+          <button class="primary-nav__btn" data-view="appointments">Appointments</button>
+          <button class="primary-nav__btn" data-view="progress">Progress</button>
+          <button class="primary-nav__btn" data-view="assistant">Ask CareBuddy</button>
+          <button class="primary-nav__btn" data-view="family">Family</button>
+        </nav>
+
+        <section id="view-today" class="app-view is-visible">
         <div class="workspace">
           <!-- Left column: profile + dashboard -->
           <div class="col-left">
             <div class="widget">
               <div class="widget__header">
-                <h2 class="widget__title">Profile</h2>
-                <button class="icon-btn icon-btn--sm" id="btn-edit-profile" aria-label="Edit profile">
-                  <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M9.5 2.5L11.5 4.5L5 11H3V9L9.5 2.5Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>
-                </button>
+                <h2 class="widget__title">Today</h2>
               </div>
-              <dl class="profile-grid" id="profile-kv">
-                <div class="skeleton-block" style="height:72px"></div>
-              </dl>
+              <p class="today-greeting" id="today-greeting"></p>
+              <p class="today-date" id="today-date"></p>
             </div>
 
             <div class="widget widget--accent">
               <div class="widget__header">
-                <h2 class="widget__title">Next reminder</h2>
+                <h2 class="widget__title">Today's plan</h2>
                 <span class="badge badge--teal" id="next-badge" hidden>Soon</span>
               </div>
               <div id="panel-next" class="next-reminder-content">
@@ -136,84 +163,151 @@
 
             <div class="widget">
               <div class="widget__header">
-                <h2 class="widget__title">Daily summary</h2>
+                <h2 class="widget__title">Medication due today</h2>
               </div>
-              <div class="summary-box" id="daily-summary"></div>
+              <div id="today-medications" class="single-view-list"></div>
             </div>
-          </div>
 
-          <!-- Right column: tabs -->
-          <div class="col-right">
-            <div class="tabbed-panel">
-              <div class="tab-bar" role="tablist">
-                <button class="tab-btn is-active" role="tab" aria-selected="true" data-tab="chat">
-                  <svg width="15" height="15" viewBox="0 0 15 15" fill="none"><path d="M7.5 1C3.9 1 1 3.5 1 6.7c0 1.6.7 3 1.9 4l-.4 2.8 2.7-1.3C5.8 12.4 6.6 12.5 7.5 12.5c3.6 0 6.5-2.6 6.5-5.8C14 3.5 11.1 1 7.5 1z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>
-                  Chat
-                </button>
-                <button class="tab-btn" role="tab" aria-selected="false" data-tab="calendar">
-                  <svg width="15" height="15" viewBox="0 0 15 15" fill="none"><rect x="1" y="2.5" width="13" height="12" rx="2" stroke="currentColor" stroke-width="1.4"/><path d="M5 1v3M10 1v3M1 6h13" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
-                  Calendar
-                </button>
-                <button class="tab-btn" role="tab" aria-selected="false" data-tab="reminders">
-                  <svg width="15" height="15" viewBox="0 0 15 15" fill="none"><path d="M3 4h9M3 7.5h9M3 11h5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
-                  Reminders
-                </button>
+            <div class="widget">
+              <div class="widget__header">
+                <h2 class="widget__title">Upcoming appointment today</h2>
               </div>
+              <div id="today-appointments" class="single-view-list"></div>
+            </div>
 
-              <div class="tab-content">
-                <!-- CHAT -->
-                <div class="tab-pane is-visible" id="panel-chat" role="tabpanel">
-                  <div class="chat-toolbar">
-                    <label class="upload-btn" title="Attach medicine label photo">
-                      <input type="file" id="chat-image" accept="image/png,image/jpeg,image/webp" hidden />
-                      <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M2 11l3-3 2 2 3-4 4 5H2z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/><rect x="1" y="1" width="14" height="14" rx="3" stroke="currentColor" stroke-width="1.4"/></svg>
-                      Label photo
-                    </label>
-                    <span class="toolbar-hint">Images are for label reading only — not medical diagnosis.</span>
-                  </div>
-                  <div class="chat-log" id="chat-log" aria-live="polite" aria-label="Chat messages"></div>
-                  <form class="chat-compose" id="chat-form" autocomplete="off">
-                    <div class="compose-inner">
-                      <label class="sr-only" for="chat-input">Message CareBuddy</label>
-                      <textarea
-                        id="chat-input"
-                        class="compose-textarea"
-                        rows="1"
-                        placeholder="Ask CareBuddy anything…"
-                        autocomplete="off"
-                        spellcheck="true"
-                      ></textarea>
-                      <button type="submit" class="send-btn" id="chat-send" aria-label="Send message">
-                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M2 8L14 2L10 8L14 14L2 8Z" fill="currentColor"/></svg>
-                      </button>
-                    </div>
-                  </form>
-                </div>
+            <div class="widget">
+              <div class="widget__header">
+                <h2 class="widget__title">Today's progress</h2>
+              </div>
+              <div class="progress-widget" id="progress-widget">
+                <div class="skeleton-block" style="height:74px"></div>
+              </div>
+            </div>
 
-                <!-- CALENDAR -->
-                <div class="tab-pane" id="panel-calendar" role="tabpanel" hidden>
-                  <div class="cal-controls">
-                    <div class="seg-control" role="group" aria-label="Calendar view">
-                      <button class="seg-btn is-active" data-cal-mode="daily">Daily</button>
-                      <button class="seg-btn" data-cal-mode="weekly">Weekly</button>
-                    </div>
-                    <div id="calendar-date-controls" class="cal-date-row"></div>
-                  </div>
-                  <div id="calendar-body" class="cal-body"></div>
-                </div>
-
-                <!-- ALL REMINDERS -->
-                <div class="tab-pane" id="panel-reminders" role="tabpanel" hidden>
-                  <div class="reminders-header">
-                    <span class="reminders-count" id="reminders-total"></span>
-                    <button class="text-btn" id="btn-open-reminder-tab">+ Add reminder</button>
-                  </div>
-                  <div id="all-reminders" class="reminder-list"></div>
-                </div>
+            <div class="widget">
+              <div class="widget__header">
+                <h2 class="widget__title">Encouragement</h2>
+              </div>
+              <div class="summary-box" id="today-encouragement">
+                You're doing great today.
               </div>
             </div>
           </div>
         </div>
+        </section>
+
+        <section id="view-medications" class="app-view" hidden>
+          <div class="single-view-card">
+            <div class="widget__header">
+              <h2 class="widget__title">Medications</h2>
+              <button class="btn-primary" id="btn-add-medication">Add medication</button>
+            </div>
+            <p class="single-view-intro">Clear medication cards with next dose, check-off, and gentle snooze.</p>
+            <div id="medications-list" class="single-view-list"></div>
+          </div>
+        </section>
+
+        <section id="view-appointments" class="app-view" hidden>
+          <div class="single-view-card">
+            <div class="widget__header">
+              <h2 class="widget__title">Appointments</h2>
+              <button class="btn-primary" id="btn-add-appointment">Add appointment</button>
+            </div>
+            <p class="single-view-intro">Upcoming appointments with preparation support.</p>
+            <div id="appointments-list" class="single-view-list"></div>
+          </div>
+        </section>
+
+        <section id="view-progress" class="app-view" hidden>
+          <div class="single-view-card">
+            <div class="widget__header">
+              <h2 class="widget__title">Progress</h2>
+            </div>
+            <div id="progress-summary-view"></div>
+          </div>
+        </section>
+
+        <section id="view-assistant" class="app-view" hidden>
+          <div class="single-view-card">
+            <div class="widget__header">
+              <h2 class="widget__title">Ask CareBuddy</h2>
+            </div>
+            <p class="single-view-intro">I can explain your day, medications, and appointments in simple terms.</p>
+            <div class="assistant-shortcuts" style="margin-bottom:.6rem">
+              <button class="text-btn assistant-prompt-btn" data-prompt="What do I need today?">What do I need today?</button>
+              <button class="text-btn assistant-prompt-btn" data-prompt="Did I take my meds?">Did I take my meds?</button>
+              <button class="text-btn assistant-prompt-btn" data-prompt="What appointments do I have?">What appointments do I have?</button>
+              <button class="text-btn assistant-prompt-btn" data-prompt="Help me stay organized">Help me stay organized</button>
+              <button class="text-btn assistant-prompt-btn" data-prompt="Explain my medication">Explain my medication</button>
+            </div>
+            <div class="assistant-chat-shell">
+              <p class="chat-toolbar-hint">Images are for label reading only — not medical diagnosis.</p>
+              <div class="chat-empty-state" id="chat-empty-state">Hello, how can I help today?</div>
+              <div class="chat-log" id="chat-log" aria-live="polite" aria-label="Chat messages"></div>
+              <form class="chat-compose" id="chat-form" autocomplete="off">
+                <div class="compose-inner">
+                  <label class="sr-only" for="chat-input">Message CareBuddy</label>
+                  <textarea
+                    id="chat-input"
+                    class="compose-textarea"
+                    rows="1"
+                    placeholder="Ask CareBuddy anything…"
+                    autocomplete="off"
+                    spellcheck="true"
+                  ></textarea>
+                  <div class="compose-actions" role="group" aria-label="Message actions">
+                    <label class="compose-icon-btn" id="chat-upload-btn" for="chat-image" aria-label="Add photo" title="Add photo">
+                      <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
+                        <path d="M9 4.25V13.75M4.25 9H13.75" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                      </svg>
+                    </label>
+                    <input type="file" id="chat-image" accept="image/png,image/jpeg,image/webp" hidden />
+                    <button type="button" class="compose-icon-btn" id="chat-voice-btn" aria-label="Use voice input" aria-pressed="false" title="Use voice input">
+                      <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
+                        <rect x="6.1" y="2.2" width="5.8" height="9.1" rx="2.9" stroke="currentColor" stroke-width="1.5"/>
+                        <path d="M4.2 8.8C4.2 11.1 5.9 13 8 13C10.1 13 11.8 11.1 11.8 8.8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                        <path d="M8 13V15.5M5.9 15.5H10.1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                      </svg>
+                    </button>
+                  </div>
+                  <button type="submit" class="send-btn" id="chat-send" aria-label="Send message">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M2 8L14 2L10 8L14 14L2 8Z" fill="currentColor"/></svg>
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </section>
+
+        <section id="view-family" class="app-view" hidden>
+          <div class="single-view-card">
+            <div class="widget__header">
+              <h2 class="widget__title">Family Overview</h2>
+            </div>
+            <div class="family-subnav" role="tablist" aria-label="Family sections">
+              <button class="family-subnav__btn is-active" data-family-tab="overview">Overview</button>
+              <button class="family-subnav__btn" data-family-tab="alerts">Alerts</button>
+              <button class="family-subnav__btn" data-family-tab="medications">Medications</button>
+              <button class="family-subnav__btn" data-family-tab="appointments">Appointments</button>
+              <button class="family-subnav__btn" data-family-tab="privacy">Privacy / Visibility</button>
+              <button class="family-subnav__btn" data-family-tab="notes">Family Notes</button>
+            </div>
+            <div id="family-overview"></div>
+            <div class="field" style="margin-top:1rem">
+              <label class="field-label">Supportive family note (one-way)</label>
+              <textarea id="family-note-input" class="field-input" rows="3" placeholder="Write a short encouraging message..."></textarea>
+              <button class="btn-primary" id="btn-save-family-note" type="button">Save today's note</button>
+            </div>
+          </div>
+        </section>
+
+        <nav class="bottom-nav" aria-label="Mobile navigation">
+          <button class="bottom-nav__btn is-active" data-view="today">Today</button>
+          <button class="bottom-nav__btn" data-view="medications">Meds</button>
+          <button class="bottom-nav__btn" data-view="appointments">Appts</button>
+          <button class="bottom-nav__btn" data-view="progress">Progress</button>
+          <button class="bottom-nav__btn" data-view="family">Family</button>
+        </nav>
       </main>
     </div>
 
@@ -234,7 +328,9 @@
               <label class="field-label">Type</label>
               <select name="kind" class="field-input">
                 <option value="medicine">💊 Medicine</option>
-                <option value="general">📋 General</option>
+                <option value="general">📅 Appointment</option>
+                <option value="routine">🌿 Routine</option>
+                <option value="family_note">💌 Family note</option>
               </select>
             </div>
             <div class="field field--grow">
@@ -269,6 +365,16 @@
           <div class="field">
             <label class="field-label">Schedule detail <span class="optional">weekday or description</span></label>
             <input name="schedule_detail" type="text" class="field-input" placeholder="e.g. Monday, first of each month" />
+          </div>
+          <div class="field-row">
+            <div class="field">
+              <label class="field-label">Reminder offsets (minutes, comma separated)</label>
+              <input name="reminder_offsets" type="text" class="field-input" placeholder="e.g. 1440,120,15" />
+            </div>
+            <div class="field">
+              <label class="field-label">Critical task</label>
+              <label class="field-checkbox"><input name="is_critical" type="checkbox" checked /> Escalate to family if repeatedly missed</label>
+            </div>
           </div>
           <div class="modal__actions">
             <button type="button" class="btn-ghost" data-close-modal>Cancel</button>
@@ -316,6 +422,33 @@
             <select name="reminder_style" id="settings-reminder-style" class="field-input"></select>
           </div>
 
+          <div class="field">
+            <label class="field-label">Family support mode</label>
+            <select name="visibility_mode" id="settings-visibility-mode" class="field-input">
+              <option value="light_support">Light Support</option>
+              <option value="active_support">Active Support</option>
+              <option value="caregiver_mode">Caregiver Mode</option>
+            </select>
+          </div>
+
+          <p class="modal__section-label">Accessibility</p>
+          <div class="field-row">
+            <div class="field">
+              <label class="field-label">Text size</label>
+              <select name="text_size" id="settings-text-size" class="field-input">
+                <option value="normal">Normal</option>
+                <option value="large">Large</option>
+                <option value="extra_large">Extra Large</option>
+              </select>
+            </div>
+            <div class="field">
+              <label class="field-label">Display options</label>
+              <label class="field-checkbox"><input type="checkbox" name="high_contrast" id="settings-high-contrast" /> High contrast</label>
+              <label class="field-checkbox"><input type="checkbox" name="reduce_motion" id="settings-reduce-motion" /> Reduce motion</label>
+              <label class="field-checkbox"><input type="checkbox" name="voice_prompts_enabled" id="settings-voice-prompts" /> Voice prompts</label>
+            </div>
+          </div>
+
           <p class="modal__section-label">Integrations</p>
           <div class="field">
             <label class="field-label">OpenAI API key <span class="optional">stored in memory only</span></label>
@@ -335,7 +468,37 @@
               <input name="notification_destination" type="text" class="field-input" placeholder="Email or phone or topic" />
             </div>
           </div>
+          <p class="modal__section-label">Reminder preferences</p>
+          <div class="field-row">
+            <div class="field">
+              <label class="field-label">Reminder sound</label>
+              <select name="reminder_sound" class="field-input">
+                <option value="chime">Gentle chime</option>
+                <option value="bell">Soft bell</option>
+                <option value="none">No sound</option>
+              </select>
+            </div>
+            <div class="field">
+              <label class="field-label">Reminder frequency</label>
+              <select name="reminder_frequency" class="field-input">
+                <option value="normal">Normal</option>
+                <option value="fewer">Fewer reminders</option>
+                <option value="more">More reminders</option>
+              </select>
+            </div>
+          </div>
+          <div class="field-row">
+            <div class="field">
+              <label class="field-label">Default snooze duration (minutes)</label>
+              <input name="snooze_duration" class="field-input" type="number" min="5" step="5" value="15" />
+            </div>
+            <div class="field">
+              <label class="field-label">Family alert delay (minutes)</label>
+              <input name="family_alert_delay" class="field-input" type="number" min="15" step="5" value="45" />
+            </div>
+          </div>
           <div class="modal__actions">
+            <button type="button" class="btn-ghost" id="btn-retake-setup">Retake Personal Setup</button>
             <button type="button" class="btn-ghost" data-close-modal>Cancel</button>
             <button type="submit" class="btn-primary">Save settings</button>
           </div>

@@ -407,3 +407,17 @@ async def serve_index() -> FileResponse:
     if not index.is_file():
         raise HTTPException(status_code=404, detail="UI not built. Add static/index.html")
     return FileResponse(index)
+
+
+@app.get("/onboarding")
+@app.get("/today")
+@app.get("/medications")
+@app.get("/appointments")
+@app.get("/progress")
+@app.get("/assistant")
+@app.get("/settings")
+@app.get("/family")
+@app.get("/family/alerts")
+@app.get("/family/settings")
+async def serve_spa_routes() -> FileResponse:
+    return await serve_index()

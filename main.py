@@ -91,6 +91,14 @@ def get_session_openai_key(session_id: str) -> str | None:
     return _session_openai_keys.get(session_id) or None
 
 
+def _mask_openai_key(key: str | None) -> str:
+    if not key:
+        return ""
+    visible = key[:10]
+    hidden_len = max(len(key) - 10, 0)
+    return visible + ("*" * hidden_len)
+
+
 def resolve_key_for_session(session_id: str) -> str:
     return resolve_openai_key(get_session_openai_key(session_id))
 
@@ -192,6 +200,7 @@ def bootstrap(session_id: str | None = None) -> dict:
     sid = (session_id or "").strip() or str(uuid.uuid4())
     persona = get_persona(sid)
     notif_ch, notif_dest = _session_notifications.get(sid, ("email", ""))
+    masked_session_key = _mask_openai_key(get_session_openai_key(sid))
     return {
         "session_id": sid,
         "persona": PersonaOut(
@@ -204,6 +213,7 @@ def bootstrap(session_id: str | None = None) -> dict:
         "notification_channel": notif_ch,
         "notification_destination": notif_dest,
         "has_server_openai_key": bool(resolve_openai_key(None)),
+        "masked_openai_api_key": masked_session_key,
     }
 
 

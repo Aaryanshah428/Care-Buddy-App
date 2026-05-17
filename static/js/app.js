@@ -411,7 +411,9 @@ function fillSettingsForm(boot) {
   f.language.value = boot.persona.language || "English";
   f.timezone.value = boot.persona.timezone || "UTC";
   f.reminder_style.value = boot.persona.reminder_style || "gentle";
-  f.openai_api_key.value = "";
+  const maskedKey = boot.masked_openai_api_key || "";
+  f.openai_api_key.value = maskedKey;
+  f.openai_api_key.dataset.maskedValue = maskedKey;
   f.notification_channel.value = boot.notification_channel || "email";
   f.notification_destination.value = boot.notification_destination || "";
   f.visibility_mode.value = prefs.visibility_mode || "light_support";
@@ -1652,7 +1654,8 @@ function setupModals() {
       notification_destination: f.notification_destination.value.trim(),
     };
     const key = f.openai_api_key.value.trim();
-    if (key) payload.openai_api_key = key;
+    const maskedValue = (f.openai_api_key.dataset.maskedValue || "").trim();
+    if (key && key !== maskedValue) payload.openai_api_key = key;
     try {
       await api("/api/persona", { method: "PUT", body: JSON.stringify(payload) });
       toast("Settings saved.");
@@ -1960,15 +1963,10 @@ async function init() {
     await loadMeta();
     fillSettingsForm(boot);
 
-    const chip = $("#status-chip");
     const hint = $("#api-key-hint");
     if (boot.has_server_openai_key) {
-      chip.classList.add("is-ready");
-      $("#status-label").textContent = "Ready";
       hint.textContent = "Server API key is active.";
     } else {
-      chip.classList.remove("is-ready");
-      $("#status-label").textContent = "No API key";
       hint.innerHTML = `Open <strong>Settings</strong> to add your OpenAI key.`;
     }
 

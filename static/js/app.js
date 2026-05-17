@@ -3,8 +3,11 @@
  */
 
 const STORAGE_KEY = "carebuddy_session_id";
+const THEME_KEY = "carebuddy_theme_v1";
 const UI_PREFS_KEY = "carebuddy_ui_preferences_v1";
 const FAMILY_NOTE_KEY = "carebuddy_family_note_v1";
+const FAMILY_NOTES_KEY = "carebuddy_family_notes_v2";
+const FAMILY_MEMBERS_KEY = "carebuddy_family_members_v1";
 const ONBOARDING_KEY = "carebuddy_onboarding_v1";
 const REMINDER_EVENTS_KEY = "carebuddy_reminder_events_v1";
 const TASK_META_KEY = "carebuddy_task_meta_v1";
@@ -14,8 +17,10 @@ let calMode = "daily";
 let activeView = "today";
 let activeFamilyTab = "overview";
 let onboardingStep = 0;
+let selectedMember = "";
 const ONBOARDING_DEFAULTS = {
   role_choice: "myself",
+  family_members: [],
   help_with: ["Knowing what to do today"],
   wake_time: "07:30",
   med_time: "08:30",
@@ -116,6 +121,63 @@ function loadTaskMeta() {
 
 function saveTaskMeta(meta) {
   localStorage.setItem(TASK_META_KEY, JSON.stringify(meta));
+}
+
+function getFamilyMembers() {
+  try { return JSON.parse(localStorage.getItem(FAMILY_MEMBERS_KEY) || "[]"); }
+  catch { return []; }
+}
+
+function saveFamilyMembers(members) {
+  localStorage.setItem(FAMILY_MEMBERS_KEY, JSON.stringify(members));
+}
+
+function isInFamilyMode() {
+  return onboardingData.role_choice === "family" && getFamilyMembers().length > 0;
+}
+
+function getFamilyNote(member) {
+  try {
+    const notes = JSON.parse(localStorage.getItem(FAMILY_NOTES_KEY) || "{}");
+    return notes[member || "general"] || localStorage.getItem(FAMILY_NOTE_KEY) || "";
+  } catch { return localStorage.getItem(FAMILY_NOTE_KEY) || ""; }
+}
+
+function saveFamilyNote(member, note) {
+  let notes = {};
+  try { notes = JSON.parse(localStorage.getItem(FAMILY_NOTES_KEY) || "{}"); } catch { /**/ }
+  notes[member || "general"] = note;
+  localStorage.setItem(FAMILY_NOTES_KEY, JSON.stringify(notes));
+}
+
+function filterByMember(rows) {
+  if (!selectedMember) return rows;
+  const meta = loadTaskMeta();
+  return rows.filter(r => (meta[r.id]?.member || "") === selectedMember);
+}
+
+function renderMemberSelector(wrapId, viewName) {
+  const wrap = $(`#${wrapId}`);
+  if (!wrap) return;
+  const members = getFamilyMembers();
+  const isFamily = onboardingData.role_choice === "family" && members.length > 0;
+  if (!isFamily) { wrap.innerHTML = ""; return; }
+  wrap.innerHTML = `
+    <div class="member-selector">
+      <label class="sr-only" for="${wrapId}-select">Show for</label>
+      <select class="member-selector__select" id="${wrapId}-select" title="Filter by family member">
+        <option value="">All members</option>
+        ${members.map(m => `<option value="${escapeAttr(m)}" ${selectedMember === m ? "selected" : ""}>${escapeHtml(m)}</option>`).join("")}
+      </select>
+    </div>
+  `;
+  $(`#${wrapId}-select`)?.addEventListener("change", async ev => {
+    selectedMember = ev.target.value;
+    if (viewName === "medications") await loadMedicationsView();
+    else if (viewName === "appointments") await loadAppointmentsView();
+    else if (viewName === "progress") await loadProgressView();
+    else if (viewName === "family") await loadFamilyView();
+  });
 }
 
 function classifyTaskType(reminder) {
@@ -232,6 +294,30 @@ function applyAccessibilityFromPrefs(prefs = loadUiPrefs()) {
   document.body.classList.toggle("reduce-motion", !!prefs.reduce_motion);
 }
 
+function applyTheme(theme) {
+  const isLight = theme === "light";
+  document.body.classList.toggle("light-mode", isLight);
+  const sun = $("#theme-icon-sun");
+  const moon = $("#theme-icon-moon");
+  const btn = $("#btn-theme-toggle");
+  if (sun) sun.style.display = isLight ? "none" : "";
+  if (moon) moon.style.display = isLight ? "" : "none";
+  if (btn) {
+    btn.setAttribute("aria-label", isLight ? "Switch to dark mode" : "Switch to light mode");
+    btn.setAttribute("title", isLight ? "Switch to dark mode" : "Switch to light mode");
+  }
+  localStorage.setItem(THEME_KEY, theme);
+}
+
+function setupThemeToggle() {
+  const saved = localStorage.getItem(THEME_KEY) || "dark";
+  applyTheme(saved);
+  $("#btn-theme-toggle")?.addEventListener("click", () => {
+    const isLight = document.body.classList.contains("light-mode");
+    applyTheme(isLight ? "dark" : "light");
+  });
+}
+
 function toast(msg, isError = false) {
   const region = $("#toasts");
   const el = document.createElement("div");
@@ -320,7 +406,7 @@ function setActiveView(view, opts = {}) {
     activeView = "onboarding";
   }
   document.body.classList.toggle("onboarding-active", activeView === "onboarding");
-  $all(".primary-nav__btn, .bottom-nav__btn").forEach(btn => {
+  $all(".primary-nav__btn, .bottom-nav__btn, .sidebar-nav-item").forEach(btn => {
     const on = btn.dataset.view === activeView;
     btn.classList.toggle("is-active", on);
   });
@@ -429,7 +515,7 @@ function fillSettingsForm(boot) {
 
 const ONBOARDING_STEPS = [
   { title: "Welcome to CareBuddy", subtitle: "A calm daily guide to help you stay independent, organized, and on track." },
-  { title: "Who is this for?", subtitle: "Choose the setup path that fits best." },
+  { title: "Who are you setting this up for?", subtitle: "Tell us who you'd like to care for." },
   { title: "What would you like help with?", subtitle: "Pick all that apply." },
   { title: "Build Today's routine", subtitle: "Set your preferred daily schedule." },
   { title: "Add first medication", subtitle: "You can skip this and add it later." },
@@ -440,7 +526,12 @@ const ONBOARDING_STEPS = [
 ];
 
 function renderOnboarding() {
-  const step = ONBOARDING_STEPS[onboardingStep];
+  let step = ONBOARDING_STEPS[onboardingStep];
+  if (onboardingStep === 1 && onboardingData.role_choice === "family") {
+    step = { title: "Who are you setting this up for?", subtitle: "Add the names of the family members you want to care for." };
+  } else if (onboardingStep === 1) {
+    step = { title: "Ready to get started", subtitle: "CareBuddy will guide you step by step through your personal setup." };
+  }
   $("#onboarding-title").textContent = step.title;
   $("#onboarding-subtitle").textContent = step.subtitle;
   $("#onboarding-step-label").textContent = `Step ${onboardingStep + 1} of ${ONBOARDING_STEPS.length}`;
@@ -463,11 +554,54 @@ function renderOnboarding() {
         </button>
       </div>
     `;
+  } else if (onboardingStep === 1 && onboardingData.role_choice === "family") {
+    const members = onboardingData.family_members || [];
+    body.innerHTML = `
+      <div class="field ob-member-entry">
+        <label class="field-label">Family member name</label>
+        <div class="field-row" style="gap:.5rem;align-items:flex-end">
+          <input id="ob-member-name" class="field-input" type="text" placeholder="e.g. Mom, Dad, Grandma" autocomplete="off"/>
+          <button type="button" class="btn-primary ob-add-member-btn" id="ob-add-member">Add</button>
+        </div>
+      </div>
+      ${members.length === 0 ? `<p class="ob-member-hint">Add at least one family member to continue.</p>` : ""}
+      <ul class="ob-member-list" id="ob-member-list">
+        ${members.map((m, i) => `
+          <li class="ob-member-item">
+            <span class="ob-member-item__name">${escapeHtml(m)}</span>
+            <button type="button" class="ob-member-item__remove" data-remove-member="${i}" aria-label="Remove ${escapeAttr(m)}">✕</button>
+          </li>
+        `).join("")}
+      </ul>
+    `;
+    const addBtn = $("#ob-add-member");
+    const nameInput = $("#ob-member-name");
+    const doAdd = () => {
+      const name = nameInput.value.trim();
+      if (!name) return;
+      const current = onboardingData.family_members || [];
+      if (!current.includes(name)) {
+        saveOnboarding({ family_members: [...current, name] });
+      }
+      nameInput.value = "";
+      renderOnboarding();
+    };
+    addBtn?.addEventListener("click", doAdd);
+    nameInput?.addEventListener("keydown", ev => { if (ev.key === "Enter") { ev.preventDefault(); doAdd(); } });
+    $all("[data-remove-member]", body).forEach(btn => {
+      btn.addEventListener("click", () => {
+        const idx = Number(btn.dataset.removeMember);
+        const current = [...(onboardingData.family_members || [])];
+        current.splice(idx, 1);
+        saveOnboarding({ family_members: current });
+        renderOnboarding();
+      });
+    });
   } else if (onboardingStep === 1) {
     body.innerHTML = `
-      <div class="onboarding-grid">
-        <button class="select-card ${onboardingData.role_choice === "myself" ? "is-selected" : ""}" data-role-choice="myself">Myself</button>
-        <button class="select-card ${onboardingData.role_choice === "family" ? "is-selected" : ""}" data-role-choice="family">My parent or loved one</button>
+      <div class="onboarding-card">
+        <h3 style="margin:0 0 .5rem">You're setting this up for yourself</h3>
+        <p style="margin:0;color:var(--t-1)">CareBuddy will guide you step by step through your daily routine, medications, and appointments.</p>
       </div>
     `;
   } else if (onboardingStep === 2) {
@@ -771,35 +905,50 @@ async function loadSidebarUpcoming() {
 }
 
 async function loadMedicationsView() {
+  renderMemberSelector("member-selector-wrap-medications", "medications");
   const rows = await api("/api/reminders");
   const prefs = loadUiPrefs();
   const mode = prefs.visibility_mode || "light_support";
   simulateReminderEscalation(rows, mode);
-  const meds = rows.filter(r => classifyTaskType(r) === "medication");
+  const allMeds = rows.filter(r => classifyTaskType(r) === "medication");
+  const meds = filterByMember(allMeds);
   const el = $("#medications-list");
   if (!el) return;
+  const memberLabel = selectedMember ? ` for ${selectedMember}` : "";
   if (!meds.length) {
-    el.innerHTML = `<p class="cal-empty">No medications added yet. CareBuddy can help you remember when you're ready.</p>`;
+    el.innerHTML = `<p class="cal-empty">No medications added yet${memberLabel}. CareBuddy can help you remember when you're ready.</p>`;
     return;
   }
+  const taskMeta = loadTaskMeta();
   el.innerHTML = meds.map(m => {
     const stage = getReminderEscalationStage(m);
     const status = reminderStatusLabel(m);
-    const sameMed = meds.filter(x => x.title === m.title);
+    const isCompleted = status === "completed";
+    const sameMed = allMeds.filter(x => x.title === m.title);
     const takenCount = sameMed.filter(x => x.status === "completed").length;
     const dosage = (m.notes || "Not set").trim() || "Not set";
+    const memberFor = taskMeta[m.id]?.member || "";
+    const memberTag = isInFamilyMode() && memberFor ? `<span class="badge badge--member">👤 ${escapeHtml(memberFor)}</span>` : "";
+    const statusBadgeHtml = isCompleted
+      ? `<span class="badge badge--green info-card__status-badge">✓ Taken</span>`
+      : status === "missed"
+        ? `<span class="badge badge--amber info-card__status-badge">⚠ Missed</span>`
+        : `<span class="badge info-card__status-badge">Pending</span>`;
     return `
-    <article class="info-card" data-med-id="${m.id}">
-      <p class="info-card__title">${escapeHtml(m.title)}</p>
+    <article class="info-card${isCompleted ? " info-card--completed" : ""}" data-med-id="${m.id}">
+      <div class="info-card__title-row">
+        <p class="info-card__title">${escapeHtml(m.title)} ${memberTag}</p>
+        ${statusBadgeHtml}
+      </div>
       <p class="info-card__meta">Dosage: ${escapeHtml(dosage)}</p>
       <p class="info-card__meta">Schedule: ${escapeHtml(m.schedule_summary || "Not set")}</p>
       <p class="info-card__meta">Next dose: ${escapeHtml(fmtDate(m.reminder_date))} at ${escapeHtml(m.reminder_time)}</p>
-      <p class="info-card__meta">Adherence history: ${takenCount}/${sameMed.length} doses marked taken</p>
-      <p class="info-card__meta">Refill reminder: add refill date in notes (coming soon)</p>
-      <p class="info-card__meta">Status: ${escapeHtml(status)}${stage === 2 ? " · Follow-up reminder sent (15m)." : ""}${stage === 3 ? " · Final follow-up sent (45m)." : ""}</p>
+      <p class="info-card__meta">Adherence: ${takenCount}/${sameMed.length} doses taken${stage === 2 ? " · Reminder sent (15m)." : ""}${stage === 3 ? " · Final reminder sent (45m)." : ""}</p>
       <div class="info-card__actions">
-        <button class="today-item__btn" data-med-done="${m.id}">Taken</button>
-        <button class="today-item__snooze" data-med-snooze="${m.id}">Remind me later</button>
+        <button class="today-item__btn${isCompleted ? " today-item__btn--undo" : ""}" data-med-done="${m.id}">
+          ${isCompleted ? "↩ Undo" : "Mark taken"}
+        </button>
+        ${!isCompleted ? `<button class="today-item__snooze" data-med-snooze="${m.id}">Remind me later</button>` : ""}
       </div>
     </article>
   `;
@@ -825,12 +974,15 @@ async function loadMedicationsView() {
 }
 
 async function loadAppointmentsView() {
+  renderMemberSelector("member-selector-wrap-appointments", "appointments");
   const rows = await api("/api/reminders");
-  const appts = rows.filter(r => classifyTaskType(r) === "appointment");
+  const allAppts = rows.filter(r => classifyTaskType(r) === "appointment");
+  const appts = filterByMember(allAppts);
   const el = $("#appointments-list");
   if (!el) return;
+  const memberLabel = selectedMember ? ` for ${selectedMember}` : "";
   if (!appts.length) {
-    el.innerHTML = `<p class="cal-empty">No appointments coming up. Add one so CareBuddy can help you prepare.</p>`;
+    el.innerHTML = `<p class="cal-empty">No appointments coming up${memberLabel}. Add one so CareBuddy can help you prepare.</p>`;
     return;
   }
   const now = new Date();
@@ -841,18 +993,32 @@ async function loadAppointmentsView() {
     .filter(a => new Date(`${a.reminder_date}T${a.reminder_time}:00`) < now)
     .sort((a, b) => `${b.reminder_date}T${b.reminder_time}`.localeCompare(`${a.reminder_date}T${a.reminder_time}`));
 
-  const appointmentCard = (a, showActions = true) => `
-    <article class="info-card">
-      <p class="info-card__title">${escapeHtml(a.title)}</p>
+  const apptTaskMeta = loadTaskMeta();
+  const appointmentCard = (a, showActions = true) => {
+    const memberFor = apptTaskMeta[a.id]?.member || "";
+    const memberTag = isInFamilyMode() && memberFor ? `<span class="badge badge--member">👤 ${escapeHtml(memberFor)}</span>` : "";
+    const isCompleted = a.status === "completed";
+    const apptStatusBadge = isCompleted
+      ? `<span class="badge badge--green info-card__status-badge">✓ Completed</span>`
+      : `<span class="badge info-card__status-badge">Upcoming</span>`;
+    return `
+    <article class="info-card${isCompleted ? " info-card--completed" : ""}">
+      <div class="info-card__title-row">
+        <p class="info-card__title">${escapeHtml(a.title)} ${memberTag}</p>
+        ${apptStatusBadge}
+      </div>
       <p class="info-card__meta">${escapeHtml(fmtDate(a.reminder_date))} at ${escapeHtml(a.reminder_time)}${a.place ? ` · ${escapeHtml(a.place)}` : ""}</p>
-      <p class="info-card__meta">Prep reminder: ${escapeHtml(a.notes || "Bring your medication list and arrive a little early.")}</p>
-      <p class="info-card__meta">Calendar list: ${escapeHtml(a.schedule_summary || "One-time event")}</p>
+      <p class="info-card__meta">Prep notes: ${escapeHtml(a.notes || "Bring your medication list and arrive a little early.")}</p>
+      <p class="info-card__meta">Schedule: ${escapeHtml(a.schedule_summary || "One-time event")}</p>
       ${showActions ? `<div class="info-card__actions">
-        <button class="today-item__btn" data-appt-done="${a.id}">Mark complete</button>
-        <button class="today-item__snooze" data-appt-snooze="${a.id}">Remind me later</button>
+        <button class="today-item__btn${isCompleted ? " today-item__btn--undo" : ""}" data-appt-done="${a.id}">
+          ${isCompleted ? "↩ Undo" : "Mark complete"}
+        </button>
+        ${!isCompleted ? `<button class="today-item__snooze" data-appt-snooze="${a.id}">Remind me later</button>` : ""}
       </div>` : ""}
     </article>
   `;
+  };
 
   el.innerHTML = `
     <article class="info-card">
@@ -886,7 +1052,9 @@ async function loadAppointmentsView() {
 }
 
 async function loadProgressView() {
-  const rows = await api("/api/reminders");
+  renderMemberSelector("member-selector-wrap-progress", "progress");
+  const allRows = await api("/api/reminders");
+  const rows = filterByMember(allRows);
   const completed = rows.filter(r => r.status === "completed").length;
   const total = rows.length || 1;
   const meds = rows.filter(r => classifyTaskType(r) === "medication");
@@ -905,10 +1073,11 @@ async function loadProgressView() {
   const streak = Math.min(7, Math.max(1, Math.round((medRate + apptRate) / 30)));
   const el = $("#progress-summary-view");
   if (!el) return;
+  const memberHeading = selectedMember ? ` — ${selectedMember}` : "";
   el.innerHTML = `
     <div class="single-view-list">
       <article class="info-card">
-        <p class="info-card__title">Organized days streak: ${streak} day${streak === 1 ? "" : "s"} 🌿</p>
+        <p class="info-card__title">Organized days streak${memberHeading}: ${streak} day${streak === 1 ? "" : "s"} 🌿</p>
         <p class="info-card__meta">Gentle achievements build long-term consistency.</p>
       </article>
       <article class="info-card">
@@ -916,17 +1085,19 @@ async function loadProgressView() {
         <p class="info-card__meta">Medication consistency: <strong>${medRate}%</strong></p>
         <p class="info-card__meta">Appointment completion: <strong>${apptRate}%</strong></p>
         <p class="info-card__meta">Weekly trends: <strong>${weeklyRate}%</strong> completion rate this week.</p>
-        <p class="info-card__meta">All-time completion: <strong>${completed}</strong> of <strong>${total}</strong>.</p>
+        <p class="info-card__meta">All-time completion: <strong>${completed}</strong> of <strong>${rows.length}</strong>.</p>
       </article>
     </div>
   `;
 }
 
 async function loadFamilyView() {
-  const rows = await api("/api/reminders");
+  renderMemberSelector("member-selector-wrap-family", "family");
+  const allRows = await api("/api/reminders");
   const prefs = loadUiPrefs();
   const mode = prefs.visibility_mode || "light_support";
-  simulateReminderEscalation(rows, mode);
+  simulateReminderEscalation(allRows, mode);
+  const rows = filterByMember(allRows);
   const today = new Date();
   const missedCritical = rows.filter(r => {
     if (classifyTaskType(r) !== "medication" || r.status === "completed") return false;
@@ -935,7 +1106,10 @@ async function loadFamilyView() {
   });
   const completed = rows.filter(r => r.status === "completed").length;
   const total = rows.length;
-  const note = localStorage.getItem(FAMILY_NOTE_KEY) || "Emma says: Good luck at your appointment today ❤️";
+  const familyMode = isInFamilyMode();
+  const noteKey = selectedMember || "general";
+  const note = getFamilyNote(noteKey) || (familyMode ? "" : "Your family is thinking of you today ❤️");
+
   const family = $("#family-overview");
   if (family) {
     const medicationRows = rows.filter(r => classifyTaskType(r) === "medication");
@@ -944,6 +1118,7 @@ async function loadFamilyView() {
     const medicationTotal = medicationRows.length || 1;
     const appointmentCompletion = appointmentRows.filter(r => r.status === "completed").length;
     const appointmentTotal = appointmentRows.length || 1;
+    const memberHeading = selectedMember ? ` (${selectedMember})` : "";
     const summaryBlock = mode === "light_support"
       ? `<p class="info-card__meta">Light Support only shows critical missed reminders.</p>`
       : `<p class="info-card__meta">Medication completion: ${Math.round((medicationCompletion / medicationTotal) * 100)}%</p>
@@ -957,24 +1132,24 @@ async function loadFamilyView() {
 
     const overviewHtml = `
       <article class="info-card">
-        <p class="info-card__title">${completed >= Math.max(1, Math.floor(total * 0.6)) ? "Mary is on track today" : "Today is a little off track"}</p>
+        <p class="info-card__title">${completed >= Math.max(1, Math.floor(total * 0.6)) ? `On track today${memberHeading}` : `Today is a little off track${memberHeading}`}</p>
         <p class="info-card__meta">${completed} of ${total} tasks completed.</p>
         <p class="info-card__meta">Visibility mode: ${escapeHtml(mode.replaceAll("_", " "))}</p>
         ${summaryBlock}
       </article>`;
     const alertsHtml = `
       <article class="info-card">
-        <p class="info-card__title">Alerts</p>
+        <p class="info-card__title">Alerts${memberHeading}</p>
         <p class="info-card__meta">${missedCritical.length ? `${missedCritical.length} critical medication reminder(s) may need follow-up.` : "No critical alerts."}</p>
       </article>`;
     const medsHtml = `
       <article class="info-card">
-        <p class="info-card__title">Medications</p>
+        <p class="info-card__title">Medications${memberHeading}</p>
         <p class="info-card__meta">${medicationCompletion} of ${medicationRows.length || 0} medication tasks completed.</p>
       </article>`;
     const apptsHtml = `
       <article class="info-card">
-        <p class="info-card__title">Appointments</p>
+        <p class="info-card__title">Appointments${memberHeading}</p>
         <p class="info-card__meta">${appointmentCompletion} of ${appointmentRows.length || 0} appointment tasks completed.</p>
       </article>`;
     const privacyHtml = `
@@ -983,10 +1158,13 @@ async function loadFamilyView() {
         <p class="info-card__meta">Current mode: ${escapeHtml(mode.replaceAll("_", " "))}</p>
         <p class="info-card__meta">The senior should be informed whenever family visibility changes.</p>
       </article>`;
+    const noteTitle = familyMode
+      ? (selectedMember ? `Note for ${escapeHtml(selectedMember)}` : "Notes for family members")
+      : "Note from your family";
     const notesHtml = `
       <article class="info-card">
-        <p class="info-card__title">Today's note</p>
-        <p class="info-card__meta">${escapeHtml(note)}</p>
+        <p class="info-card__title">${noteTitle}</p>
+        <p class="info-card__meta">${escapeHtml(note || "No note yet.")}</p>
       </article>`;
 
     const tabMap = {
@@ -1011,13 +1189,22 @@ async function loadFamilyView() {
   $all(".family-subnav__btn").forEach(btn => {
     btn.classList.toggle("is-active", btn.dataset.familyTab === activeFamilyTab);
   });
+
   const noteInput = $("#family-note-input");
   const saveBtn = $("#btn-save-family-note");
   if (noteInput) {
-    noteInput.disabled = mode === "light_support";
+    noteInput.readOnly = false;
+    noteInput.disabled = false;
     noteInput.value = note;
+    noteInput.placeholder = selectedMember ? `Write a note for ${selectedMember}…` : "Write a short encouraging message…";
+    noteInput.title = "";
+    noteInput.style.opacity = "";
+    noteInput.style.cursor = "";
   }
-  if (saveBtn) saveBtn.disabled = mode === "light_support";
+  if (saveBtn) {
+    saveBtn.hidden = false;
+    saveBtn.disabled = false;
+  }
 }
 
 // ── Chat ───────────────────────────────────────
@@ -1302,7 +1489,7 @@ function setupFamilyTabs() {
 }
 
 function setupPrimaryNav() {
-  $all(".primary-nav__btn, .bottom-nav__btn").forEach(btn => {
+  $all(".primary-nav__btn, .bottom-nav__btn, .sidebar-nav-item").forEach(btn => {
     btn.addEventListener("click", async () => {
       const view = btn.dataset.view || "today";
       setActiveView(view);
@@ -1326,6 +1513,48 @@ function setupPrimaryNav() {
   });
 }
 
+function setupTodayStackedCards() {
+  const todayCol = $("#view-today .col-left");
+  if (!todayCol) return;
+
+  todayCol.classList.add("today-stack");
+  const widgets = $all(".widget", todayCol);
+  widgets.forEach((widget) => {
+    if (widget.dataset.stackedReady === "true") return;
+    const header = $(".widget__header", widget);
+    const title = $(".widget__title", widget);
+    if (!header || !title) return;
+
+    const body = document.createElement("div");
+    body.className = "stacked-body";
+
+    while (widget.children.length > 1) {
+      body.appendChild(widget.children[1]);
+    }
+    widget.appendChild(body);
+
+    const titleText = title.textContent?.trim() || "Section";
+    const trigger = document.createElement("button");
+    trigger.type = "button";
+    trigger.className = "stacked-title-btn";
+    trigger.setAttribute("aria-expanded", "false");
+    trigger.innerHTML = `
+      <span class="stacked-title-btn__label">${escapeHtml(titleText)}</span>
+      <span class="stacked-title-btn__chevron" aria-hidden="true">▾</span>
+    `;
+
+    title.textContent = "";
+    title.appendChild(trigger);
+    widget.classList.add("widget--stacked");
+    widget.dataset.stackedReady = "true";
+
+    trigger.addEventListener("click", () => {
+      const expanded = widget.classList.toggle("is-expanded");
+      trigger.setAttribute("aria-expanded", expanded ? "true" : "false");
+    });
+  });
+}
+
 function setupExtraActions() {
   $("#btn-add-medication")?.addEventListener("click", () => {
     $("#btn-open-reminder")?.click();
@@ -1336,19 +1565,16 @@ function setupExtraActions() {
     $("#form-reminder")?.kind && ($("#form-reminder").kind.value = "general");
   });
   $("#btn-save-family-note")?.addEventListener("click", async () => {
-    const mode = loadUiPrefs().visibility_mode || "light_support";
-    if (mode === "light_support") {
-      toast("Switch to Active Support or Caregiver Mode to edit notes.", true);
-      return;
-    }
     const input = $("#family-note-input");
     const note = input?.value?.trim();
     if (!note) {
       toast("Please enter a short note first.", true);
       return;
     }
+    const noteKey = selectedMember || "general";
+    saveFamilyNote(noteKey, note);
     localStorage.setItem(FAMILY_NOTE_KEY, note);
-    toast("Family note saved.");
+    toast(selectedMember ? `Note saved for ${selectedMember}.` : "Family note saved.");
     await Promise.all([loadFamilyView(), loadDashboard()]);
   });
 }
@@ -1391,6 +1617,9 @@ function captureOnboardingStepInputs() {
 
 async function finalizeOnboarding() {
   saveOnboarding({ completed: true });
+  if (onboardingData.role_choice === "family" && onboardingData.family_members?.length > 0) {
+    saveFamilyMembers(onboardingData.family_members);
+  }
   const uiPrefs = {
     visibility_mode: onboardingData.visibility_mode,
     text_size: onboardingData.text_size,
@@ -1478,6 +1707,11 @@ async function finalizeOnboarding() {
 
 function setupOnboarding() {
   loadOnboarding();
+  // Sync family_members from onboardingData into dedicated storage if needed
+  if (onboardingData.role_choice === "family" && onboardingData.family_members?.length > 0) {
+    const stored = getFamilyMembers();
+    if (stored.length === 0) saveFamilyMembers(onboardingData.family_members);
+  }
   if (!onboardingData.completed) {
     setActiveView("onboarding");
   }
@@ -1489,6 +1723,13 @@ function setupOnboarding() {
   });
   $("#onboarding-next")?.addEventListener("click", async () => {
     captureOnboardingStepInputs();
+    if (onboardingStep === 1 && onboardingData.role_choice === "family") {
+      if (!onboardingData.family_members || onboardingData.family_members.length === 0) {
+        toast("Please add at least one family member to continue.", true);
+        return;
+      }
+      saveFamilyMembers(onboardingData.family_members);
+    }
     if (onboardingStep < ONBOARDING_STEPS.length - 1) {
       onboardingStep += 1;
       renderOnboarding();
@@ -1549,6 +1790,16 @@ function setupModals() {
     f.reminder_time.value = "09:00";
     f.reminder_offsets.value = "1440,120,15";
     f.is_critical.checked = true;
+    // Show "For member" field only in family mode
+    const forMemberField = $("#field-for-member");
+    const forMemberSelect = $("#reminder-for-member");
+    const members = getFamilyMembers();
+    const showMemberField = onboardingData.role_choice === "family" && members.length > 0;
+    if (forMemberField) forMemberField.style.display = showMemberField ? "" : "none";
+    if (showMemberField && forMemberSelect) {
+      forMemberSelect.innerHTML = `<option value="">— select member —</option>` +
+        members.map(m => `<option value="${escapeAttr(m)}" ${selectedMember === m ? "selected" : ""}>${escapeHtml(m)}</option>`).join("");
+    }
     openModal("#modal-reminder");
   };
 
@@ -1614,10 +1865,12 @@ function setupModals() {
           routine: "routine",
           family_note: "family_note",
         };
+        const forMember = (f.for_member?.value || "").trim();
         upsertTaskMeta(createdId, {
           task_type: taskTypeMap[f.kind.value] || "routine",
           reminder_offsets: offsets,
           is_critical: !!f.is_critical.checked,
+          member: forMember,
         });
       }
       toast("Reminder saved.");
@@ -1958,6 +2211,7 @@ function setupSidebar() {
 
 async function init() {
   try {
+    applyTheme(localStorage.getItem(THEME_KEY) || "dark");
     applyAccessibilityFromPrefs();
     const boot = await ensureSession();
     await loadMeta();
@@ -1970,6 +2224,7 @@ async function init() {
       hint.innerHTML = `Open <strong>Settings</strong> to add your OpenAI key.`;
     }
 
+    setupThemeToggle();
     setupTabs();
     setupModals();
     setupChat();
@@ -1979,6 +2234,7 @@ async function init() {
     setupExtraActions();
     setupOnboarding();
     setupPrimaryNav();
+    setupTodayStackedCards();
     setupCalendarMode();
     setupSidebar();
 

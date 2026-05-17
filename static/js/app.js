@@ -772,10 +772,8 @@ async function loadDashboard() {
 
   // Panel next
   const nextEl = $("#panel-next");
-  const nextBadge = $("#next-badge");
   if (d.next_reminder) {
     const nr = d.next_reminder;
-    nextBadge.hidden = false;
     nextEl.innerHTML = `
       <div class="nr-title">Next up: ${escapeHtml(nr.title)} at ${escapeHtml(nr.reminder_time)}</div>
       <div class="nr-meta">${escapeHtml(fmtDate(nr.reminder_date))} · ${kindBadge(nr.kind)}</div>
@@ -1413,7 +1411,7 @@ function setupChat() {
       });
     } else {
       voiceBtn.addEventListener("click", () => {
-        toast("Voice input is coming soon on this device.");
+        toast("Voice input is not available on this device.");
       });
     }
   }
@@ -1516,43 +1514,8 @@ function setupPrimaryNav() {
 function setupTodayStackedCards() {
   const todayCol = $("#view-today .col-left");
   if (!todayCol) return;
-
   todayCol.classList.add("today-stack");
-  const widgets = $all(".widget", todayCol);
-  widgets.forEach((widget) => {
-    if (widget.dataset.stackedReady === "true") return;
-    const header = $(".widget__header", widget);
-    const title = $(".widget__title", widget);
-    if (!header || !title) return;
-
-    const body = document.createElement("div");
-    body.className = "stacked-body";
-
-    while (widget.children.length > 1) {
-      body.appendChild(widget.children[1]);
-    }
-    widget.appendChild(body);
-
-    const titleText = title.textContent?.trim() || "Section";
-    const trigger = document.createElement("button");
-    trigger.type = "button";
-    trigger.className = "stacked-title-btn";
-    trigger.setAttribute("aria-expanded", "false");
-    trigger.innerHTML = `
-      <span class="stacked-title-btn__label">${escapeHtml(titleText)}</span>
-      <span class="stacked-title-btn__chevron" aria-hidden="true">▾</span>
-    `;
-
-    title.textContent = "";
-    title.appendChild(trigger);
-    widget.classList.add("widget--stacked");
-    widget.dataset.stackedReady = "true";
-
-    trigger.addEventListener("click", () => {
-      const expanded = widget.classList.toggle("is-expanded");
-      trigger.setAttribute("aria-expanded", expanded ? "true" : "false");
-    });
-  });
+  // Cards are always fully expanded — no accordion collapse
 }
 
 function setupExtraActions() {

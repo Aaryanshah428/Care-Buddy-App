@@ -288,33 +288,38 @@ function getRouteViewFromUrl() {
 }
 
 function applyAccessibilityFromPrefs(prefs = loadUiPrefs()) {
-  document.body.classList.toggle("text-large", prefs.text_size === "large");
-  document.body.classList.toggle("text-extra-large", prefs.text_size === "extra_large");
+  // Text size scales the root font size so every rem-based size grows with it.
+  for (const el of [document.documentElement, document.body]) {
+    el.classList.toggle("text-large", prefs.text_size === "large");
+    el.classList.toggle("text-extra-large", prefs.text_size === "extra_large");
+  }
   document.body.classList.toggle("high-contrast", !!prefs.high_contrast);
   document.body.classList.toggle("reduce-motion", !!prefs.reduce_motion);
 }
 
 function applyTheme(theme) {
-  const isLight = theme === "light";
-  document.body.classList.toggle("light-mode", isLight);
+  const isDark = theme === "dark";
+  document.body.classList.toggle("dark-mode", isDark);
   const sun = $("#theme-icon-sun");
   const moon = $("#theme-icon-moon");
   const btn = $("#btn-theme-toggle");
-  if (sun) sun.style.display = isLight ? "none" : "";
-  if (moon) moon.style.display = isLight ? "" : "none";
+  const label = $("#theme-toggle-label");
+  if (sun) sun.style.display = isDark ? "" : "none";
+  if (moon) moon.style.display = isDark ? "none" : "";
+  if (label) label.textContent = isDark ? "Light mode" : "Dark mode";
   if (btn) {
-    btn.setAttribute("aria-label", isLight ? "Switch to dark mode" : "Switch to light mode");
-    btn.setAttribute("title", isLight ? "Switch to dark mode" : "Switch to light mode");
+    const text = isDark ? "Switch to light mode" : "Switch to dark mode";
+    btn.setAttribute("aria-label", text);
+    btn.setAttribute("title", text);
   }
   localStorage.setItem(THEME_KEY, theme);
 }
 
 function setupThemeToggle() {
-  const saved = localStorage.getItem(THEME_KEY) || "dark";
-  applyTheme(saved);
+  applyTheme(localStorage.getItem(THEME_KEY) || "light");
   $("#btn-theme-toggle")?.addEventListener("click", () => {
-    const isLight = document.body.classList.contains("light-mode");
-    applyTheme(isLight ? "dark" : "light");
+    const isDark = document.body.classList.contains("dark-mode");
+    applyTheme(isDark ? "light" : "dark");
   });
 }
 
@@ -741,7 +746,7 @@ async function loadDashboard() {
 
   // Greeting
   const friendlyName = p.name?.trim() || "friend";
-  $("#today-greeting").textContent = `${getGreeting()}, ${friendlyName} 🌿`;
+  $("#today-greeting").textContent = `${getGreeting()}, ${friendlyName}`;
   $("#today-date").textContent = `Today is ${fmtLongDate()}.`;
 
   // Profile
@@ -775,9 +780,9 @@ async function loadDashboard() {
   if (d.next_reminder) {
     const nr = d.next_reminder;
     nextEl.innerHTML = `
-      <div class="nr-title">Next up: ${escapeHtml(nr.title)} at ${escapeHtml(nr.reminder_time)}</div>
+      <div class="nr-title">${escapeHtml(nr.title)} at ${escapeHtml(nr.reminder_time)}</div>
       <div class="nr-meta">${escapeHtml(fmtDate(nr.reminder_date))} · ${kindBadge(nr.kind)}</div>
-      <div style="margin-top:.6rem;display:flex;gap:.4rem;flex-wrap:wrap">
+      <div class="info-card__actions">
         <button class="today-item__btn" id="hero-mark-done" type="button">Mark done</button>
         <button class="today-item__snooze" id="hero-snooze" type="button">Remind me later</button>
       </div>
@@ -791,7 +796,6 @@ async function loadDashboard() {
       await snoozeReminder(nr);
     });
   } else {
-    nextBadge.hidden = true;
     nextEl.innerHTML = `<div class="nr-empty">A quiet day today 🌿 You can add a medication, appointment, or routine whenever you're ready.</div>`;
   }
 
@@ -800,7 +804,7 @@ async function loadDashboard() {
   const count = $("#today-count");
   list.innerHTML = "";
   if (!d.today_reminders.length) {
-    list.innerHTML = `<li style="color:var(--t-2);font-size:.85rem;padding:.25rem 0">No reminders today.</li>`;
+    list.innerHTML = `<li class="cal-empty">Nothing scheduled today. Enjoy your day.</li>`;
     count.hidden = true;
   } else {
     count.hidden = false;
@@ -812,15 +816,23 @@ async function loadDashboard() {
       const missed = label === "missed";
       const li = document.createElement("li");
       li.className = "today-item" + (done ? " today-item--done" : "");
+      // A status pill is only shown when it carries new information; "pending"
+      // is already implied by the Mark done button.
+      const statusPill = done
+        ? `<span class="badge badge--green">✓ Done</span>`
+        : missed
+          ? `<span class="badge badge--amber">Missed</span>`
+          : "";
       li.innerHTML = `
         <span class="today-item__time">${escapeHtml(r.reminder_time)}</span>
-        <span class="today-item__name">${escapeHtml(r.title)}${missed ? " — gently missed, you can reset now." : ""}</span>
-        <span class="today-item__kind">${kindBadge(r.kind)}</span>
-        <span class="badge ${missed ? "badge--amber" : (done ? "badge--green" : "badge")}">${escapeHtml(label)}</span>
-        <button class="today-item__btn" data-rid="${r.id}" data-done="${done}">
-          ${done ? "✓ Done" : "Mark done"}
-        </button>
-        ${done ? "" : `<button class="today-item__snooze" data-snooze="${r.id}">Remind me later</button>`}
+        <span class="today-item__name">${escapeHtml(r.title)}</span>
+        <span class="today-item__kind">${kindBadge(r.kind)}${statusPill}</span>
+        <span class="today-item__actions">
+          <button class="today-item__btn" data-rid="${r.id}" data-done="${done}">
+            ${done ? "Undo" : "Mark done"}
+          </button>
+          ${done ? "" : `<button class="today-item__snooze" data-snooze="${r.id}">Remind me later</button>`}
+        </span>
       `;
       li.querySelector("button").addEventListener("click", async (ev) => {
         const btn = ev.currentTarget;
@@ -891,7 +903,7 @@ async function loadSidebarUpcoming() {
   const rows = (await api("/api/reminders")).slice(0, 5);
   const el = $("#sidebar-upcoming");
   if (!rows.length) {
-    el.innerHTML = `<p style="color:var(--t-3);font-size:.8rem;margin:0">No reminders saved yet.</p>`;
+    el.innerHTML = `<p class="sidebar-upitem__meta" style="margin:0">No reminders saved yet.</p>`;
     return;
   }
   el.innerHTML = rows.map(r => `
@@ -1519,6 +1531,13 @@ function setupTodayStackedCards() {
 }
 
 function setupExtraActions() {
+  $("#btn-hero-add")?.addEventListener("click", () => {
+    $("#btn-open-reminder")?.click();
+  });
+  $("#btn-hero-ask")?.addEventListener("click", () => {
+    setActiveView("assistant");
+    $("#chat-input")?.focus();
+  });
   $("#btn-add-medication")?.addEventListener("click", () => {
     $("#btn-open-reminder")?.click();
     $("#form-reminder")?.kind && ($("#form-reminder").kind.value = "medicine");
@@ -1895,7 +1914,7 @@ function reminderCard(r, prefix) {
       <summary>
         ${kindBadge(r.kind)}
         <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(r.title)}</span>
-        <span style="font-size:.78rem;color:var(--t-2);white-space:nowrap">${escapeHtml(r.reminder_time)}</span>
+        <span class="rem-card__status">${escapeHtml(r.reminder_time)}</span>
         ${statusBadge(r.status)}
         <span class="rem-card__arrow">▾</span>
       </summary>
@@ -1948,7 +1967,7 @@ function reminderCard(r, prefix) {
           </select>
         </div>
         <div class="field">
-          <label class="field-label">Reminder offsets (min)</label>
+          <label class="field-label">Remind me early <span class="optional">minutes before</span></label>
           <input class="field-input" type="text" data-field="reminder_offsets" id="${uid}-offsets" value="${escapeAttr(offsets)}" />
           <label class="field-checkbox"><input type="checkbox" data-field="is_critical" id="${uid}-critical" ${critical ? "checked" : ""}/> Critical task</label>
         </div>
@@ -2035,7 +2054,7 @@ async function loadAllReminders() {
   const rows = await api("/api/reminders");
   const total = $("#reminders-total");
   if (!rows.length) {
-    stack.innerHTML = `<p style="color:var(--t-2);font-size:.88rem;padding:.5rem 0">No reminders yet. Add one above.</p>`;
+    stack.innerHTML = `<p class="cal-empty">No reminders yet. Add one above.</p>`;
     if (total) total.textContent = "0 reminders";
     return;
   }
@@ -2068,8 +2087,8 @@ async function loadCalendar() {
 
   if (calMode === "daily") {
     if (!dateCtr.querySelector("#cal-daily-date")) {
-      dateCtr.innerHTML = `<label style="display:flex;align-items:center;gap:.5rem;font-size:.84rem;color:var(--t-1)">
-        Day <input type="date" id="cal-daily-date" class="cal-date-row" style="padding:.38rem .65rem;border-radius:var(--r-xs);border:1px solid var(--bdr-1);background:var(--bg-3);color:var(--t-0);font-family:var(--font);font-size:.83rem"/>
+      dateCtr.innerHTML = `<label class="cal-date-row">
+        Day <input type="date" id="cal-daily-date" class="field-input" style="width:auto"/>
       </label>`;
       $("#cal-daily-date").addEventListener("change", () => loadCalendar());
     }
@@ -2093,8 +2112,8 @@ async function loadCalendar() {
     bindReminderCards(stack);
   } else {
     if (!dateCtr.querySelector("#cal-week-start")) {
-      dateCtr.innerHTML = `<label style="display:flex;align-items:center;gap:.5rem;font-size:.84rem;color:var(--t-1)">
-        Week start <input type="date" id="cal-week-start" style="padding:.38rem .65rem;border-radius:var(--r-xs);border:1px solid var(--bdr-1);background:var(--bg-3);color:var(--t-0);font-family:var(--font);font-size:.83rem"/>
+      dateCtr.innerHTML = `<label class="cal-date-row">
+        Week start <input type="date" id="cal-week-start" class="field-input" style="width:auto"/>
       </label>`;
       $("#cal-week-start").addEventListener("change", () => loadCalendar());
     }
@@ -2107,9 +2126,9 @@ async function loadCalendar() {
       const wd = new Date(day.date + "T12:00:00").getDay();
       const isToday = day.date === today;
       html += `<div class="cal-col${isToday ? " cal-col--today" : ""}">
-        <div class="cal-col__head">${days[wd]} <span style="color:var(--t-0)">${day.date.slice(5)}</span>${isToday ? ' <span class="badge badge--teal" style="font-size:.65rem">Today</span>' : ""}</div>`;
+        <div class="cal-col__head">${days[wd]} <span style="color:var(--t-0)">${day.date.slice(5)}</span>${isToday ? ' <span class="badge badge--teal">Today</span>' : ""}</div>`;
       if (!day.reminders.length) {
-        html += `<p style="color:var(--t-3);font-size:.78rem;margin:0">—</p>`;
+        html += `<p style="color:var(--t-2);margin:0">—</p>`;
       } else {
         html += `<div class="reminder-list" id="week-${day.date}"></div>`;
       }
@@ -2174,7 +2193,7 @@ function setupSidebar() {
 
 async function init() {
   try {
-    applyTheme(localStorage.getItem(THEME_KEY) || "dark");
+    applyTheme(localStorage.getItem(THEME_KEY) || "light");
     applyAccessibilityFromPrefs();
     const boot = await ensureSession();
     await loadMeta();

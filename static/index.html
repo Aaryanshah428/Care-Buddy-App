@@ -3,37 +3,25 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="theme-color" content="#F8F6EF" />
+    <meta name="theme-color" content="#ffffff" />
     <meta name="description" content="CareBuddy — calm, structured reminder and care support." />
     <title>CareBuddy</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;450;500;600;700&family=Cal+Sans&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;550;600;700;750;800&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="/static/css/app.css" />
   </head>
   <body>
     <a class="skip-link" href="#main-content">Skip to main content</a>
-
-    <div class="app-aurora" aria-hidden="true">
-      <div class="aurora aurora-1"></div>
-      <div class="aurora aurora-2"></div>
-      <div class="aurora aurora-3"></div>
-    </div>
 
     <!-- Top bar -->
     <header class="topbar">
       <div class="topbar__inner">
         <div class="brand">
           <div class="brand__icon" aria-hidden="true">
-            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-              <path d="M10 2.5C6.5 2.5 3.5 5.3 3.5 9c0 2.4 1.2 4.5 3 5.7l.5 2.3c.1.3.4.5.7.5h4.6c.3 0 .6-.2.7-.5l.5-2.3c1.8-1.2 3-3.3 3-5.7 0-3.7-3-6.5-6.5-6.5z" fill="url(#icon-grad)"/>
-              <path d="M7.5 14.5h5" stroke="#042f2e" stroke-width="1.5" stroke-linecap="round"/>
-              <defs>
-                <linearGradient id="icon-grad" x1="3.5" y1="2.5" x2="16.5" y2="17.5" gradientUnits="userSpaceOnUse">
-                  <stop stop-color="#2dd4bf"/>
-                  <stop offset="1" stop-color="#0d9488"/>
-                </linearGradient>
-              </defs>
+            <svg viewBox="0 0 24 24" fill="none">
+              <path d="M12 20.5S3.75 15.6 3.75 9.94a4.44 4.44 0 0 1 8.25-2.3 4.44 4.44 0 0 1 8.25 2.3c0 5.66-8.25 10.56-8.25 10.56z" stroke="#ffffff" stroke-width="1.7" stroke-linejoin="round"/>
+              <path d="M7.5 11.8h2.2l1.2-2.2 1.6 4 1.1-1.8h2.9" stroke="#ffffff" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
           </div>
           <div class="brand__text">
@@ -42,28 +30,29 @@
           </div>
         </div>
         <div class="topbar__right">
-          <!-- Dark / light mode toggle (was the settings gear) -->
-          <button class="icon-btn" id="btn-theme-toggle" aria-label="Switch to light mode" title="Switch to light mode">
-            <!-- Sun icon shown in dark mode; swapped to moon in light mode via JS -->
-            <svg id="theme-icon-sun" width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
+          <!-- Dark / light mode toggle -->
+          <button class="icon-btn icon-btn--labelled" id="btn-theme-toggle" aria-label="Switch to dark mode" title="Switch to dark mode">
+            <svg id="theme-icon-sun" width="22" height="22" viewBox="0 0 18 18" fill="none" aria-hidden="true" style="display:none">
               <circle cx="9" cy="9" r="3.2" stroke="currentColor" stroke-width="1.6"/>
               <path d="M9 1.5v2M9 14.5v2M1.5 9h2M14.5 9h2M3.5 3.5l1.4 1.4M13.1 13.1l1.4 1.4M3.5 14.5l1.4-1.4M13.1 4.9l1.4-1.4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
             </svg>
-            <svg id="theme-icon-moon" width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true" style="display:none">
+            <svg id="theme-icon-moon" width="22" height="22" viewBox="0 0 18 18" fill="none" aria-hidden="true">
               <path d="M14.8 11.2A6.4 6.4 0 0 1 6.8 3.2 6.4 6.4 0 1 0 14.8 11.2z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
             </svg>
+            <span class="icon-btn__label" id="theme-toggle-label">Dark mode</span>
           </button>
-          <!-- Settings — sliders icon -->
-          <button class="icon-btn" id="btn-open-settings-top" aria-label="Open settings" title="Settings">
-            <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
+          <!-- Settings -->
+          <button class="icon-btn icon-btn--labelled" id="btn-open-settings-top" aria-label="Open settings" title="Settings">
+            <svg width="22" height="22" viewBox="0 0 18 18" fill="none" aria-hidden="true">
               <path d="M2 4.5h14M2 9h14M2 13.5h14" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
-              <circle cx="6"  cy="4.5"  r="2" fill="var(--bg-1)" stroke="currentColor" stroke-width="1.5"/>
-              <circle cx="12" cy="9"    r="2" fill="var(--bg-1)" stroke="currentColor" stroke-width="1.5"/>
-              <circle cx="7"  cy="13.5" r="2" fill="var(--bg-1)" stroke="currentColor" stroke-width="1.5"/>
+              <circle cx="6"  cy="4.5"  r="2" fill="var(--bg-2)" stroke="currentColor" stroke-width="1.5"/>
+              <circle cx="12" cy="9"    r="2" fill="var(--bg-2)" stroke="currentColor" stroke-width="1.5"/>
+              <circle cx="7"  cy="13.5" r="2" fill="var(--bg-2)" stroke="currentColor" stroke-width="1.5"/>
             </svg>
+            <span class="icon-btn__label">Settings</span>
           </button>
-          <button class="icon-btn" id="btn-sidebar-toggle" aria-label="Toggle menu">
-            <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+          <button class="icon-btn" id="btn-sidebar-toggle" aria-label="Open menu" title="Menu">
+            <svg width="22" height="22" viewBox="0 0 18 18" fill="none" aria-hidden="true">
               <rect y="3" width="18" height="2" rx="1" fill="currentColor"/>
               <rect y="8" width="18" height="2" rx="1" fill="currentColor"/>
               <rect y="13" width="18" height="2" rx="1" fill="currentColor"/>
@@ -201,17 +190,24 @@
         <div class="workspace">
           <!-- Left column: profile + dashboard -->
           <div class="col-left">
-            <div class="widget">
-              <div class="widget__header">
-                <h2 class="widget__title">Today</h2>
-              </div>
-              <p class="today-greeting" id="today-greeting"></p>
+            <div class="widget widget--hero">
+              <h1 class="today-greeting" id="today-greeting"></h1>
               <p class="today-date" id="today-date"></p>
+              <div class="hero-actions">
+                <button class="btn-primary" id="btn-hero-add" type="button">
+                  <svg width="20" height="20" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 3v10M3 8h10" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+                  Add a reminder
+                </button>
+                <button class="btn-ghost" id="btn-hero-ask" type="button">
+                  <svg width="20" height="20" viewBox="0 0 18 18" fill="none" aria-hidden="true"><path d="M3 4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H7l-4 3V4z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>
+                  Ask CareBuddy
+                </button>
+              </div>
             </div>
 
             <div class="widget widget--accent">
               <div class="widget__header">
-                <h2 class="widget__title">Today's plan</h2>
+                <h2 class="widget__title">Next up</h2>
               </div>
               <div id="panel-next" class="next-reminder-content">
                 <div class="skeleton-block" style="height:56px"></div>
@@ -220,24 +216,24 @@
 
             <div class="widget">
               <div class="widget__header">
-                <h2 class="widget__title">Today</h2>
+                <h2 class="widget__title">Today's schedule</h2>
                 <span class="badge" id="today-count"></span>
               </div>
               <ul class="today-list" id="today-list" aria-label="Today's reminders">
-                <div class="skeleton-block" style="height:64px"></div>
+                <li><div class="skeleton-block" style="height:64px"></div></li>
               </ul>
             </div>
 
             <div class="widget">
               <div class="widget__header">
-                <h2 class="widget__title">Medication due today</h2>
+                <h2 class="widget__title">Medications due today</h2>
               </div>
               <div id="today-medications" class="single-view-list"></div>
             </div>
 
             <div class="widget">
               <div class="widget__header">
-                <h2 class="widget__title">Upcoming appointment today</h2>
+                <h2 class="widget__title">Appointments today</h2>
               </div>
               <div id="today-appointments" class="single-view-list"></div>
             </div>
@@ -270,7 +266,7 @@
               <div id="member-selector-wrap-medications" class="member-selector-wrap"></div>
               <button class="btn-primary" id="btn-add-medication">Add medication</button>
             </div>
-            <p class="single-view-intro">Clear medication cards with next dose, check-off, and gentle snooze.</p>
+            <p class="single-view-intro">Everything you take, with the next dose and a simple way to check it off.</p>
             <div id="medications-list" class="single-view-list"></div>
           </div>
         </section>
@@ -282,7 +278,7 @@
               <div id="member-selector-wrap-appointments" class="member-selector-wrap"></div>
               <button class="btn-primary" id="btn-add-appointment">Add appointment</button>
             </div>
-            <p class="single-view-intro">Upcoming appointments with preparation support.</p>
+            <p class="single-view-intro">Your upcoming visits, with a reminder of what to bring.</p>
             <div id="appointments-list" class="single-view-list"></div>
           </div>
         </section>
@@ -302,8 +298,8 @@
             <div class="widget__header">
               <h2 class="widget__title">Ask CareBuddy</h2>
             </div>
-            <p class="single-view-intro">I can explain your day, medications, and appointments in simple terms.</p>
-            <div class="assistant-shortcuts" style="margin-bottom:.6rem">
+            <p class="single-view-intro">I can explain your day, medications, and appointments in simple terms. Tap a question below or type your own.</p>
+            <div class="assistant-shortcuts">
               <button class="text-btn assistant-prompt-btn" data-prompt="What do I need today?">What do I need today?</button>
               <button class="text-btn assistant-prompt-btn" data-prompt="Did I take my meds?">Did I take my meds?</button>
               <button class="text-btn assistant-prompt-btn" data-prompt="What appointments do I have?">What appointments do I have?</button>
@@ -364,20 +360,37 @@
               <button class="family-subnav__btn" data-family-tab="notes">Family Notes</button>
             </div>
             <div id="family-overview"></div>
-            <div class="field" style="margin-top:1rem">
-              <label class="field-label">Supportive family note (one-way)</label>
+            <div class="field" style="margin-top:1.5rem">
+              <label class="field-label" for="family-note-input">Supportive family note <span class="optional">seen by your loved one</span></label>
               <textarea id="family-note-input" class="field-input" rows="3" placeholder="Write a short encouraging message..."></textarea>
-              <button class="btn-primary" id="btn-save-family-note" type="button">Save today's note</button>
+              <div class="info-card__actions">
+                <button class="btn-primary" id="btn-save-family-note" type="button">Save today's note</button>
+              </div>
             </div>
           </div>
         </section>
 
         <nav class="bottom-nav" aria-label="Mobile navigation">
-          <button class="bottom-nav__btn is-active" data-view="today">Today</button>
-          <button class="bottom-nav__btn" data-view="medications">Meds</button>
-          <button class="bottom-nav__btn" data-view="appointments">Appts</button>
-          <button class="bottom-nav__btn" data-view="progress">Progress</button>
-          <button class="bottom-nav__btn" data-view="family">Family</button>
+          <button class="bottom-nav__btn is-active" data-view="today">
+            <svg viewBox="0 0 18 18" fill="none" aria-hidden="true"><rect x="2" y="4" width="14" height="12" rx="2" stroke="currentColor" stroke-width="1.6"/><path d="M6 2v4M12 2v4M2 8h14" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+            Today
+          </button>
+          <button class="bottom-nav__btn" data-view="medications">
+            <svg viewBox="0 0 18 18" fill="none" aria-hidden="true"><rect x="3" y="7" width="12" height="7" rx="2" stroke="currentColor" stroke-width="1.6"/><path d="M6 7V5a3 3 0 0 1 6 0v2M9 10v2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+            Meds
+          </button>
+          <button class="bottom-nav__btn" data-view="appointments">
+            <svg viewBox="0 0 18 18" fill="none" aria-hidden="true"><circle cx="9" cy="9" r="7" stroke="currentColor" stroke-width="1.6"/><path d="M9 5v4l3 2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            Visits
+          </button>
+          <button class="bottom-nav__btn" data-view="progress">
+            <svg viewBox="0 0 18 18" fill="none" aria-hidden="true"><rect x="2" y="11" width="3" height="5" rx="1" fill="currentColor" opacity=".55"/><rect x="7" y="7" width="3" height="9" rx="1" fill="currentColor" opacity=".8"/><rect x="12" y="3" width="3" height="13" rx="1" fill="currentColor"/></svg>
+            Progress
+          </button>
+          <button class="bottom-nav__btn" data-view="family">
+            <svg viewBox="0 0 18 18" fill="none" aria-hidden="true"><circle cx="6.5" cy="6" r="2.5" stroke="currentColor" stroke-width="1.5"/><circle cx="12" cy="5.5" r="2" stroke="currentColor" stroke-width="1.5"/><path d="M1 15c0-2.5 2.5-4 5.5-4s5.5 1.5 5.5 4M12 10c2 0 4 1 4 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+            Family
+          </button>
         </nav>
       </main>
     </div>
@@ -445,8 +458,8 @@
           </div>
           <div class="field-row">
             <div class="field">
-              <label class="field-label">Reminder offsets (minutes, comma separated)</label>
-              <input name="reminder_offsets" type="text" class="field-input" placeholder="e.g. 1440,120,15" />
+              <label class="field-label">Remind me early <span class="optional">minutes before, separated by commas</span></label>
+              <input name="reminder_offsets" type="text" class="field-input" placeholder="e.g. 1440, 120, 15" />
             </div>
             <div class="field">
               <label class="field-label">Critical task</label>
